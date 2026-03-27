@@ -1,0 +1,193 @@
+
+// STORE REQUEST OF FLOORS
+
+IF "Floor1_UP" OR "Cabin_Button_Floor1" THEN
+    "Request_Floor1" := TRUE;
+END_IF;
+    
+IF "Floor2_UP" OR "Floor2_DOWN" OR "Cabin_Button_Floor2" THEN
+    "Request_Floor2" := TRUE;
+END_IF;
+        
+IF "Floor3_UP" OR "Floor3_DOWN" OR "Cabin_Button_Floor3" THEN
+    "Request_Floor3" := TRUE;
+END_IF;
+            
+IF "Floor4_DOWN" OR "Cabin_Button_Floor4" THEN
+    "Request_Floor4" := TRUE;
+END_IF;
+
+
+
+//REQUEST SAVE TO TARGET FLOOR
+
+IF "Request_Floor1" THEN
+    "Target_Floor" := 1;
+ELSIF "Request_Floor2" THEN
+    "Target_Floor" := 2;
+ELSIF "Request_Floor3"  THEN
+    "Target_Floor" := 3;
+ELSIF "Request_Floor4" THEN
+    "Target_Floor" := 4;
+END_IF;
+
+
+//MOTOR START CONDITION
+"Motor_START" := FALSE;
+IF ("Target_Floor" <> "Current_Floor") AND ("Target_Floor" <> 0) AND NOT "Door_OPEN" THEN
+    "Motor_START" := TRUE;
+END_IF;
+
+
+//DIRECTION SELECTION OF MOTOR
+"Motor_DIRECTION_UP" := FALSE;
+"Motor_DIRECTION_DOWN" := FALSE;
+
+IF "Motor_START" AND "Target_Floor" > "Current_Floor" THEN
+    "Motor_DIRECTION_UP" := TRUE;
+END_IF;
+
+IF
+    "Motor_START" AND "Target_Floor" < "Current_Floor" THEN
+    "Motor_DIRECTION_DOWN" := TRUE;
+END_IF;
+
+
+// MOVEMENT SIMULATION (5 SECONDS PER FLOOR)
+"Timer_Move".TON(IN:="Motor_START" AND NOT #Move_Pulse, // This simulation demonstrates the lift's upward and downward movement, assuming it takes 5 seconds to travel between each floor 
+                 PT:= T#5s);
+
+
+#Move_Pulse := "Timer_Move".Q;
+
+// EVERY 5 SECONDS; MOVE THE LIFT UP OR DOWN 1 FLOOR VIRTUALLY
+IF #Move_Pulse THEN
+    IF "Motor_DIRECTION_UP" AND "Current_Floor" < 4 THEN
+        "Current_Floor" := "Current_Floor" + 1;
+    ELSIF "Motor_DIRECTION_DOWN" AND "Current_Floor" > 1 THEN
+        "Current_Floor" := "Current_Floor" - 1;
+    END_IF;
+END_IF;
+
+
+
+//  ACTIVATE SIMULATED FLOOR SENSORS
+
+// THIS UPDATES YOUR SPECIFIC SENSOR TAGS BASED ON THE SIMULATED POSITION
+"Floor1_Sensor" := ("Current_Floor" = 1);
+"Floor2_Sensor" := ("Current_Floor" = 2);
+"Floor3_Sensor" := ("Current_Floor" = 3);
+"Floor4_Sensor" := ("Current_Floor" = 4);
+
+
+//  ARRIVAL & DOOR CONTROL
+
+// IF THE ACTIVE SENSOR MATCHES OUR TARGET, WE HAVE ARRIVED!
+IF ("Target_Floor" > 0) AND ("Current_Floor" = "Target_Floor") THEN
+    
+    // CLEAR THE REQUEST FOR THIS FLOOR
+    IF "Floor1_Sensor" THEN
+        "Request_Floor1" := FALSE;
+    END_IF;
+    IF "Floor2_Sensor" THEN
+        "Request_Floor2" := FALSE;
+    END_IF;
+    IF "Floor3_Sensor" THEN
+        "Request_Floor3" := FALSE;
+    END_IF;
+    IF "Floor4_Sensor" THEN
+        "Request_Floor4" := FALSE;
+    END_IF;
+    "Target_Floor" := 0;  // Clear target to stop motor 
+    "Door_OPEN" := TRUE;
+END_IF;
+
+    // DOOR REMAINS OPEN FOR 5 SECONDS
+    "Timer_Door".TON(IN := "Door_OPEN",
+                     PT := T#5s);
+    
+    IF "Timer_Door".Q THEN
+        "Door_OPEN" := FALSE;
+        "Door_CLOSE" := TRUE; // Close door after 5 seconds
+    END_IF;
+    
+    
+    //CONTROL BUTTONS REST
+    IF "Current_Floor"= 1 AND "Target_Floor" = 0
+    THEN
+        "Cabin_Button_Floor1" := FALSE;
+        "Floor1_UP" := FALSE;
+    END_IF;
+    
+    IF "Current_Floor" = 2 AND "Target_Floor" = 0
+    THEN
+        "Cabin_Button_Floor2" := FALSE;
+        "Floor2_UP" := FALSE;
+        "Floor2_DOWN" := FALSE;
+    END_IF;
+    
+    IF "Current_Floor" = 3 AND "Target_Floor" = 0
+    THEN
+        "Cabin_Button_Floor3" := FALSE;
+        "Floor3_UP" := FALSE;
+        "Floor3_DOWN" := FALSE;
+    END_IF;
+    
+    IF "Current_Floor" = 4 AND "Target_Floor" = 0
+    THEN
+        "Cabin_Button_Floor4" := FALSE;
+        "Floor4_DOWN" := FALSE;
+    END_IF;
+    
+    
+// SPEED CONTROL
+"Motor_SPEED" := 1500;
+IF ABS("Target_Floor" - "Current_Floor") = 1 THEN
+    "Motor_SPEED" := 500;
+END_IF;
+
+//SAFETY
+IF "Door_Safety_Sensor" THEN
+    "Door_OPEN" := TRUE;
+    "Door_CLOSE" := FALSE;
+END_IF;
+
+// MANUAL DOOR OPENING
+IF "Cabin_Button_Door_OPEN" THEN
+    "Door_OPEN" := TRUE;
+    "Door_CLOSE" := FALSE;
+END_IF;
+
+// MAUAL DOOR CLOSING
+IF "Cabin_Button_Door_CLOSE" THEN
+    "Door_OPEN" := FALSE;
+    "Door_CLOSE" := TRUE;
+END_IF;
+
+    
+// INTERLOCKS
+  
+// NO MOVEMENT IF DOOR IS OPEN
+IF "Door_OPEN" THEN
+    "Motor_START" := FALSE;
+END_IF;
+
+//PREVENT BOTH DOOR SIGNALS
+IF "Door_OPEN" AND "Door_CLOSE" THEN
+    "Door_CLOSE" := FALSE;
+END_IF;
+
+
+
+
+            
+
+
+
+
+
+
+
+
+
+
